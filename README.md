@@ -1,7 +1,7 @@
 # azure-pipeline-demo
 Azure pipeline for iOS deployment to AppStore.
 
-# Azure Pipeline Steps
+# Steps
 1. Install apple development certificate to keyhcain
 2. Install distribution provisioning profile <b>(for manual code signing) </b>
 3. Download Authkey p8 file to use in the following steps
