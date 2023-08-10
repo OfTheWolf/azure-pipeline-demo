@@ -1,0 +1,54 @@
+# Xcode
+# Build, test, and archive an Xcode workspace on macOS.
+# Add steps that install certificates, test, sign, and distribute an app, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/xcode
+
+trigger:
+- main
+
+pool:
+  vmImage: 'macos-latest'
+
+variables:
+- name: PROJECT_NAME
+  value: azure-pipeline-demo 
+
+steps:
+- task: InstallAppleCertificate@2
+  inputs:
+    certSecureFile: 'dev-cert.p12'
+    keychain: 'temp'
+- task: DownloadSecureFile@1
+  name: apiKey
+  displayName: 'Download AuthKey_{KeyID}.p8 file'
+  inputs:
+    secureFile: 'AuthKey_$(API_KEY_ID).p8'
+
+- task: Bash@3
+  displayName: 'Archive'
+  inputs:
+    targetType: 'inline'
+    script: |
+      xcodebuild archive -project '$(PROJECT_NAME).xcodeproj' -scheme '$(PROJECT_NAME)' -sdk iphoneos -archivePath $(PROJECT_NAME).xcarchive -allowProvisioningUpdates -authenticationKeyID $(API_KEY_ID) -authenticationKeyIssuerID $(API_KEY_ISSUER_ID) -authenticationKeyPath $(apiKey.secureFilePath)   
+
+- task: Bash@3
+  displayName: 'Export Archive'
+  inputs:
+    targetType: 'inline'
+    script: |
+      xcodebuild -exportArchive -archivePath $(PROJECT_NAME).xcarchive -exportPath $(PROJECT_NAME).ipa -exportOptionsPlist ExportOptions.plist -allowProvisioningUpdates -authenticationKeyID $(API_KEY_ID) -authenticationKeyIssuerID $(API_KEY_ISSUER_ID) -authenticationKeyPath $(apiKey.secureFilePath) 
+     
+- task: Bash@3
+  displayName: 'Upload to AppStore'
+  inputs:
+    targetType: 'inline'
+    script: |
+      mkdir ~/.private_keys 
+      mv $(apiKey.secureFilePath) ~/.private_keys
+      xcrun altool \
+      --upload-app \
+      -f $(PROJECT_NAME).ipa \
+      -t ios \
+      --apiKey $API_KEY_ID \
+      --apiIssuer $API_KEY_ISSUER_ID \
+      --verbose \
